@@ -1,37 +1,75 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
-export default function CsvForm() {
-  const router = useRouter();
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+type PlanetData = {
+  pl_name: string;
+  rf_probability: number;
+};
+
+export default function CsvForm({
+  onPlanetsUpdate,
+  onAccuracyUpdate,
+}: {
+  onPlanetsUpdate: (data: PlanetData[]) => void;
+  onAccuracyUpdate: (accuracy: number) => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    } else {
-      setFile(null);
-    }
+    setFile(e.target.files?.[0] || null);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     if (!file) {
-      // No file, just navigate to /scene
-      router.push("/scene");
+      setError("Please select a CSV file first.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const csvData = reader.result as string;
+    setLoading(true);
 
-      // Pass CSV data as base64 in URL query (optional)
-      const encoded = encodeURIComponent(csvData);
-      router.push(`/scene?csv=${encoded}`);
-    };
-    reader.readAsText(file);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("http://localhost:5000/predict", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Something went wrong.");
+      }
+
+      const json = await res.json();
+
+      // Extract planets + accuracy
+      const planets: PlanetData[] = json.planets || [];
+      const accuracy: number = json.accuracy || 0;
+
+      // Save to sessionStorage
+      sessionStorage.setItem("planetData", JSON.stringify(planets));
+      sessionStorage.setItem("modelAccuracy", String(accuracy));
+
+      // Update parent (optional)
+      onPlanetsUpdate(planets);
+      onAccuracyUpdate(accuracy);
+
+      // Go to scene page
+      router.push("/scene");
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +82,7 @@ export default function CsvForm() {
           htmlFor="fileinput"
           className="text-gray-300 font-semibold text-lg"
         >
-          Add new CSV data (optional)
+          Add new CSV data
         </label>
         <input
           type="file"
@@ -63,11 +101,13 @@ export default function CsvForm() {
         />
         <button
           type="submit"
+          disabled={loading}
           className="bg-blue-600 text-white px-6 py-2 rounded-xl font-semibold
                      hover:bg-blue-500 transition-colors w-full"
         >
-          Continue
+          {loading ? "Processing..." : "Continue"}
         </button>
+        {error && <p className="text-red-500 mt-2">{error}</p>}
       </form>
     </section>
   );

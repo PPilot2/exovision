@@ -1,48 +1,53 @@
 "use client";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useState, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
-import { useRef, useState } from "react";
 import * as THREE from "three";
-import { Line } from "@react-three/drei";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+type PlanetData = {
+  pl_name: string;
+  rf_probability: number;
+};
+
+type ThreeSceneProps = {
+  data?: PlanetData[];
+};
+
+const colors = [
+  "#ff4c4c",
+  "#4cff4c",
+  "#4c4cff",
+  "#ffff4c",
+  "#ff4cff",
+  "#4cffff",
+  "#ff924c",
+];
+
 function Planet({
-  color,
-  name,
-  probability,
-  position,
+  planet,
   isActive,
+  color,
 }: {
-  color: string;
-  name: string;
-  probability: number;
-  position: THREE.Vector3;
+  planet: PlanetData;
   isActive: boolean;
+  color: string;
 }) {
   const meshRef = useRef<THREE.Mesh>(null!);
 
   useFrame(() => {
-    if (meshRef.current) {
+    if (meshRef.current && isActive) {
       meshRef.current.rotation.x += 0.01;
+      meshRef.current.rotation.y += 0.005;
     }
   });
 
-  const scale = isActive ? 1 : 0.6;
-
   return (
-    <group position={position} scale={[scale, scale, scale]}>
+    <group>
       <mesh ref={meshRef}>
         <sphereGeometry args={[1, 32, 32]} />
         <meshStandardMaterial color={color} />
       </mesh>
-
-      <Line
-        points={[
-          [0, 1, 0],
-          [0, 1.5, 0], 
-        ]}
-        color="white"
-        lineWidth={1}
-      />
 
       <Html
         position={[0, 1.5, 0]}
@@ -52,7 +57,7 @@ function Planet({
       >
         <div
           style={{
-            background: "rgba(0, 0, 0, 0.6)",
+            background: "rgba(0,0,0,0.7)",
             color: "white",
             padding: "4px 8px",
             borderRadius: "8px",
@@ -60,80 +65,61 @@ function Planet({
             whiteSpace: "nowrap",
           }}
         >
-          {name} - {probability}
+          <div>Name: {planet.pl_name}</div>
+          <div>Probability: {planet.rf_probability.toFixed(2)}</div>
         </div>
       </Html>
     </group>
   );
 }
 
-const PLANETS = [
-  {
-    name: "TOI-XXX",
-    color: "#00aaff",
-    probability: 0.95,
-    position: new THREE.Vector3(0, 0, 0),
-  },
-  {
-    name: "TOI-YYY",
-    color: "#ff5533",
-    probability: 0.93,
-    position: new THREE.Vector3(4, 0, 0),
-  },
-  {
-    name: "TOI-XXY",
-    color: "#ffaa00",
-    probability: 0.90,
-    position: new THREE.Vector3(8, 0, 0),
-  },
-];
+export default function ThreeScene({ data }: ThreeSceneProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const router = useRouter();
 
-function CameraController({ target }: { target: THREE.Vector3 }) {
-  const { camera } = useThree();
-
-  useFrame(() => {
-    camera.position.lerp(
-      new THREE.Vector3(target.x, target.y, target.z + 5),
-      0.05
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-white">
+        <p>No planets loaded yet.</p>
+        <button
+          onClick={() => router.push("/")}
+          className="mt-4 bg-gray-800 px-4 py-2 rounded-xl hover:bg-gray-700 transition"
+        >
+          🔙 Back to Upload
+        </button>
+      </div>
     );
-    camera.lookAt(target);
-  });
+  }
 
-  return null;
-}
-
-export default function ThreeScene() {
-  const [index, setIndex] = useState(0);
-
-  const nextPlanet = () => setIndex((i) => (i + 1) % PLANETS.length);
   const prevPlanet = () =>
-    setIndex((i) => (i - 1 + PLANETS.length) % PLANETS.length);
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : data.length - 1));
+  const nextPlanet = () =>
+    setCurrentIndex((prev) => (prev < data.length - 1 ? prev + 1 : 0));
+  // Remove duplicate planets by name
+  const uniquePlanets = data.filter(
+    (planet, index, self) =>
+      index === self.findIndex((p) => p.pl_name === planet.pl_name)
+  );
 
   return (
     <div className="relative w-full h-screen">
-      <Canvas>
+      <Canvas camera={{ position: [0, 0, 8] }}>
         <ambientLight intensity={0.5} />
         <directionalLight position={[2, 2, 2]} />
+        <OrbitControls minDistance={2} maxDistance={12} />
 
-        {/* Render planets */}
-        {PLANETS.map((planet, i) => (
-          <Planet
-            key={planet.name}
-            color={planet.color}
-            name={planet.name}
-            probability={planet.probability}
-            position={planet.position}
-            isActive={i === index}
-          />
+        {uniquePlanets.map((planet, idx) => (
+          <group
+            key={`${planet.pl_name}-${idx}`}
+            position={[(idx - currentIndex) * 3, 0, 0]}
+          >
+            <Planet
+              planet={planet}
+              isActive={idx === currentIndex}
+              color={colors[idx % colors.length]}
+            />
+          </group>
         ))}
-
-        <CameraController target={PLANETS[index].position} />
-
-        <OrbitControls
-          minDistance={2}
-          maxDistance={15}
-          target={PLANETS[index].position}
-        />
       </Canvas>
 
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4">
@@ -149,12 +135,12 @@ export default function ThreeScene() {
         >
           Next ➡️
         </button>
-        <Link
-          href="/"
-          className="bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-gray-700 transition flex items-center justify-center"
+        <button
+          onClick={() => router.push("/")}
+          className="bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-gray-700 transition"
         >
-          Back to home
-        </Link>
+          🔙 Back to Upload
+        </button>
       </div>
     </div>
   );

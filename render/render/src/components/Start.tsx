@@ -1,8 +1,17 @@
 "use client";
 import Footer from "./Footer";
 import CsvForm from "./CsvForm";
+import { useState } from "react";
+
+type PlanetData = {
+  pl_name: string;
+  rf_probability: number;
+};
 
 export default function Start() {
+  const [planetData, setPlanetData] = useState<PlanetData[]>([]);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+
   return (
     <main className="flex flex-col min-h-screen text-center p-4 bg-gray-900 text-gray-200">
       <section className="flex-grow p-6">
@@ -24,19 +33,20 @@ export default function Start() {
           our solar system, but most of these exoplanets were identified manually.
           With advances in artificial intelligence and machine learning (AI/ML),
           it is possible to automatically analyze large sets of data collected by
-          these missions to identify exoplanets. Your challenge is to create an
-          AI/ML model that is trained on one or more of the open-source exoplanet
-          datasets offered by NASA and that can analyze new data to accurately
-          identify exoplanets. (Astrophysics Division)
+          these missions to identify exoplanets.
         </p>
 
         <h2 className="text-lg font-semibold text-gray-200 mt-4">
-          Current Model Accuracy - #
+          Current Model Accuracy –{" "}
+          {accuracy !== null ? `${accuracy}%` : "Waiting for model run..."}
         </h2>
       </section>
 
       <section className="mt-6 flex flex-col items-center">
-        <CsvForm />
+        <CsvForm
+          onPlanetsUpdate={setPlanetData}
+          onAccuracyUpdate={setAccuracy}
+        />
       </section>
 
       <Footer />
