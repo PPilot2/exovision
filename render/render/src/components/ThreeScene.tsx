@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 import * as THREE from "three";
 import { Line } from "@react-three/drei";
 import Link from "next/link";
-// Planet component
 function Planet({
   color,
   name,
@@ -21,14 +20,12 @@ function Planet({
 }) {
   const meshRef = useRef<THREE.Mesh>(null!);
 
-  // Rotate the planet
   useFrame(() => {
     if (meshRef.current) {
       meshRef.current.rotation.x += 0.01;
     }
   });
 
-  // Set scale: active = 1, inactive = 0.6
   const scale = isActive ? 1 : 0.6;
 
   return (
@@ -38,17 +35,15 @@ function Planet({
         <meshStandardMaterial color={color} />
       </mesh>
 
-      {/* Line pointing to label */}
       <Line
         points={[
-          [0, 1, 0], // top of the planet
-          [0, 1.5, 0], // label position
+          [0, 1, 0],
+          [0, 1.5, 0], 
         ]}
         color="white"
         lineWidth={1}
       />
 
-      {/* Label */}
       <Html
         position={[0, 1.5, 0]}
         center
@@ -72,7 +67,6 @@ function Planet({
   );
 }
 
-// Planet data
 const PLANETS = [
   {
     name: "TOI-XXX",
@@ -94,12 +88,10 @@ const PLANETS = [
   },
 ];
 
-// Camera controller
 function CameraController({ target }: { target: THREE.Vector3 }) {
   const { camera } = useThree();
 
   useFrame(() => {
-    // Smoothly move camera to target + offset
     camera.position.lerp(
       new THREE.Vector3(target.x, target.y, target.z + 5),
       0.05
@@ -135,7 +127,6 @@ export default function ThreeScene() {
           />
         ))}
 
-        {/* Fly camera to selected planet */}
         <CameraController target={PLANETS[index].position} />
 
         <OrbitControls
